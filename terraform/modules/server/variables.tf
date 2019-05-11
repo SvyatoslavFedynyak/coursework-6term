@@ -8,7 +8,3 @@ variable "ami" {
 variable "key" {
   default = "svyatoslav_own_key"
 }
-
-variable "vpc_id" {}
-variable "public_subnet_id" {} 
-variable  "all_traphic_sg_id" {}
