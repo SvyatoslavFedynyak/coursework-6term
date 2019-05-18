@@ -8,22 +8,29 @@ resource "aws_codebuild_project" "coursework_app_builder" {
     compute_type = "BUILD_GENERAL1_SMALL"
     image = "aws/codebuild/standard:1.0"
     type = "LINUX_CONTAINER"
+
+    environment_variable = [
+      {
+        "name" = "GITHUB_TOKEN"
+        "value" = "${file("../../github-token")}"
+      }
+    ]
   }
 
   source = {
-    type = "CODEPIPELINE"
+    type = "GITHUB"
     buildspec = "${file("../modules/pipeline/data/buildspec.yml")}"
+    location = "https://github.com/SvyatoslavFedynyak/oms"
   }
 
   artifacts = {
-    type = "CODEPIPELINE"
-    #name = "Pipe-arts"
-    #encryption_disabled = true
-    #location = "${aws_s3_bucket.pipeline_bucket.bucket}"
-    #name = "coursework-app"
-    #namespace_type = "BUILD_ID"
-    #packaging ="NONE"
-    #path = "build-artifacts"
+    type = "S3"
+    name = "Build-arts"
+    encryption_disabled = true
+    location = "${aws_s3_bucket.pipeline_bucket.bucket}"
+    namespace_type = "BUILD_ID"
+    packaging ="NONE"
+    path = "build-artifacts"
   }
 
   vpc_config {

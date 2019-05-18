@@ -7,3 +7,7 @@ output "public_subnet_id" {
 output "all_traphic_sg_id" {
   value = "${aws_security_group.all_traphic_sg.id}"
 }
+
+output "instance_public_ip" {
+  value = "${aws_instance.tomcat_server.public_ip}"
+}
