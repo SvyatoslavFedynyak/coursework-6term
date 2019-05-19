@@ -1,11 +1,7 @@
 import sys, os, subprocess, boto3
 
-ec2 = boto3.resource('ec2')
+region = 'eu-central-1'
+codebuild_client = boto3.client('codebuild', region_name = region)
+print(codebuild_client.stop_build(id='coursework-app-builder'))
 
-for instance in ec2.instances.all():
-    print(instance.private_dns_name)
-    for tag in instance.tags:
-        if tag['Key'] == 'aim' and tag['Value'] == 'coursework':
-            print(instance.id)
-            instance.start()
 sys.exit

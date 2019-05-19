@@ -1,10 +1,7 @@
-import sys, os, subprocess, boto3
+import sys, os, subprocess, boto3, json
 from shutil import which
+from classes.funcs import *
 
-def check_terraform(root):
-    if which("terraform") is None:
-        scriptpath = root + '/controll-app/src/additional/install-terraform.sh'
-        subprocess.call(scriptpath, shell=True)
 
 if __name__ == "__main__":
 
@@ -12,14 +9,18 @@ if __name__ == "__main__":
     proj_root = os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/../../")
     pipeline_state = 'down'
     black_hole = open(os.devnull, 'w')
+    apply_log = open(proj_root + '/controll-app/src/log/apply.log', 'w')
+    init_log = open(proj_root + '/controll-app/src/log/init.log', 'w')
+    destroy_log = open(proj_root + '/controll-app/src/log/destroy.log', 'w')
     pipeline_tag_name = 'aim'
     pipeline_tag_value = 'coursework'
-    ec2 = boto3.resource('ec2')
-    tomcat_server
-    for instance in ec2.instances.all():
-        for tag in instance.tags:
-            if tag['Key'] == pipeline_tag_name and tag['Value'] == pipeline_tag_value:
-                tomcat_server = instance
+    region = 'eu-central-1'
+    pipeline_data = ''
+
+    # Pipeline resources
+    ec2 = boto3.client(service_name = 'ec2', region_name = region)
+    codebuild_client = boto3.client('codebuild', region_name = region)
+
 
     #checks
     os.chdir(proj_root + "/terraform/stg")
@@ -39,27 +40,50 @@ if __name__ == "__main__":
                 \nhelp - get list of commands
                 \nstatus - shows pipeline state and data
                 \ncreate - initiate pipeline creating
-                \ndestroy - initiate pipeline destruction''')
+                \ndestroy - initiate pipeline destruction
+                \nstart - power on server with app
+                \nstop - power off server with app
+                \ndata - shows pipeline data''')
         elif command == 'status':
             print("Pipeline is {}".format(pipeline_state))
         elif command == 'create':
             if pipeline_state == 'down':
                 if provider_setuped == False:
-                    subprocess.call(["terraform", "init"], stdout=black_hole)
+                    subprocess.call(["terraform", "init"], stdout=init_log)
                     provider_setuped = True
-                subprocess.call(["terraform", "apply", "-auto-approve"], stdout=black_hole)
+                subprocess.call(["terraform", "apply", "-auto-approve"], stdout=apply_log)
                 pipeline_state = 'up'
+                refresh_outputs(proj_root)
+                pipeline_data = parse_json(proj_root + '/controll-app/src/data/outputs.json')
                 print("Pipeline created")
             else:
                 print("Pipeline is {}".format(pipeline_state))
         elif command == 'destroy':
             if pipeline_state == 'up':
-                subprocess.call(["terraform", "destroy", "-auto-approve"], stdout=black_hole)
-        #elif command == 'data':
-            #for resourse in boto3.resource.all
+                subprocess.call(["terraform", "destroy", "-auto-approve"], stdout=destroy_log)
+        elif command == 'data':
+            refresh_outputs(proj_root)
+            print(open(proj_root + '/controll-app/src/data/outputs.json', 'r').read())
         elif command == 'stop':
-            tomcat_server.stop()
+            refresh_outputs(proj_root)
+            pipeline_data = parse_json(proj_root + '/controll-app/src/data/outputs.json')
+            if pipeline_data['server_state']['value'] == 'stopped':
+                print('Server is already stopped')
+            else:
+                ec2.stop_instances(InstanceIds=[pipeline_data['server_instance_id']['value']], DryRun=False)
+                print('Server was stopped')
+            # ADD A BUILD STOP (HOW TO GET LAST BUILD ID?)
+            #print(pipeline_data['build_proj_id']['value'])
+            #codebuild_client.stop_build(id = pipeline_data['build_proj_id']['value'])
         elif command == 'start':
-            tomcat_server.start()
+            refresh_outputs(proj_root)
+            pipeline_data = parse_json(proj_root + '/controll-app/src/data/outputs.json')
+            if pipeline_data['server_state']['value'] == 'running':
+                print('Server is already running')
+            else:
+                ec2.start_instances(InstanceIds=[pipeline_data['server_instance_id']['value']], DryRun=False)
+                print('Server is now running')
+
+
 sys.exit
 

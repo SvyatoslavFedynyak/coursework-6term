@@ -1,5 +1,6 @@
 #secrets
 github-token
+outputs.json
 
 #VsCode
 .vscode
